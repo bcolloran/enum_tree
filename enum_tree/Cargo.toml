@@ -1,0 +1,7 @@
+[package]
+name = "enum_tree"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+enum_tree_derive = { path = "../enum_tree_derive" }

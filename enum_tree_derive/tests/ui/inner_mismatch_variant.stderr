@@ -1,0 +1,21 @@
+error[E0599]: no variant or associated item named `Settings` found for enum `MenuFlow` in the current scope
+  --> tests/ui/inner_mismatch_variant.rs:13:10
+   |
+ 7 |   pub enum MenuFlow {
+   |   ----------------- variant or associated item `Settings` not found for this enum
+...
+12 |   #[enum_tree_inner(MenuFlow, RootAction)]
+   |  ___________________-
+13 | | pub enum Settings {
+   | |         -^^^^^^^^ variant or associated item not found in `MenuFlow`
+   | |_________|
+   |
+
+error[E0599]: no variant or associated item named `Settings` found for enum `MenuFlow` in the current scope
+  --> tests/ui/inner_mismatch_variant.rs:13:10
+   |
+ 7 | pub enum MenuFlow {
+   | ----------------- variant or associated item `Settings` not found for this enum
+...
+13 | pub enum Settings {
+   |          ^^^^^^^^ variant or associated item not found in `MenuFlow`

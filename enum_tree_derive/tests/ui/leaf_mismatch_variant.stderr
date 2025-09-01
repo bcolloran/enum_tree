@@ -1,0 +1,21 @@
+error[E0599]: no variant or associated item named `General` found for enum `MenuFlow` in the current scope
+ --> tests/ui/leaf_mismatch_variant.rs:9:10
+  |
+4 |   pub enum MenuFlow { NotGeneral(General) }
+  |   ----------------- variant or associated item `General` not found for this enum
+...
+8 |   #[enum_tree_leaf(MenuFlow, RootAction)]
+  |  __________________-
+9 | | pub enum General { ClickBack }
+  | |         -^^^^^^^ variant or associated item not found in `MenuFlow`
+  | |_________|
+  |
+
+error[E0599]: no variant or associated item named `General` found for enum `MenuFlow` in the current scope
+ --> tests/ui/leaf_mismatch_variant.rs:9:10
+  |
+4 | pub enum MenuFlow { NotGeneral(General) }
+  | ----------------- variant or associated item `General` not found for this enum
+...
+9 | pub enum General { ClickBack }
+  |          ^^^^^^^ variant or associated item not found in `MenuFlow`

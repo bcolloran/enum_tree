@@ -1,0 +1,5 @@
+error: EnumTree leaf 'IpSetup' cannot have tuple variants (found tuple variant 'UpdatePortText')
+  --> tests/ui/leaf_tuple_variants.rs:14:5
+   |
+14 |     UpdatePortText(i32),
+   |     ^^^^^^^^^^^^^^^^^^^

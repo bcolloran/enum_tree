@@ -1,0 +1,3 @@
+[workspace]
+members = ["enum_tree", "enum_tree_derive"]
+resolver = "2"
