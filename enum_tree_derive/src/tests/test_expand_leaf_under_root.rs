@@ -12,11 +12,8 @@ fn leaf_directly_under_root() {
     };
 
     let expected = quote! {
-        impl ::enum_tree::EnumTree for AudioActions {
-            type P = RootAction;
-            type R = RootAction;
-        }
-        impl ::enum_tree::EnumTreeLeaf for AudioActions {}
+        impl ::enum_tree::EnumTree<RootAction> for AudioActions { type P = RootAction; }
+        impl ::enum_tree::EnumTreeLeaf<RootAction> for AudioActions {}
 
         impl From<AudioActions> for RootAction {
             fn from(value: AudioActions) -> Self { RootAction::AudioActions(value) }

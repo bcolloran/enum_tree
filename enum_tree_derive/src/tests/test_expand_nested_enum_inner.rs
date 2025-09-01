@@ -14,11 +14,8 @@ fn test_inner_simple() {
     };
 
     let expected = quote! {
-        impl ::enum_tree::EnumTree for MenuFlow {
-            type P = RootAction;
-            type R = RootAction;
-        }
-        impl ::enum_tree::EnumTreeInner for MenuFlow {}
+        impl ::enum_tree::EnumTree<RootAction> for MenuFlow { type P = RootAction; }
+        impl ::enum_tree::EnumTreeInner<RootAction> for MenuFlow {}
 
         impl From<MenuFlow> for RootAction {
             fn from(value: MenuFlow) -> Self { RootAction::MenuFlow(value) }
@@ -48,11 +45,8 @@ fn test_inner_nested_child() {
     };
 
     let expected = quote! {
-        impl ::enum_tree::EnumTree for Settings {
-            type P = MenuFlow;
-            type R = RootAction;
-        }
-        impl ::enum_tree::EnumTreeInner for Settings {}
+        impl ::enum_tree::EnumTree<RootAction> for Settings { type P = MenuFlow; }
+        impl ::enum_tree::EnumTreeInner<RootAction> for Settings {}
 
         impl From<Settings> for MenuFlow {
             fn from(value: Settings) -> Self { MenuFlow::Settings(value) }

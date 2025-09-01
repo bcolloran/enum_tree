@@ -1,31 +1,36 @@
-/// Trait for nodes in an enum tree
-/// - `P`: The immediate parent enum type
-/// - `R`: The root enum type of the entire tree
-pub trait EnumTree: Sized {
+/// Trait for nodes in an enum tree.
+///
+/// `R` is the root enum type for the tree this node belongs to and `P` is the
+/// immediate parent enum type on the path to that root.  By making `R` a type
+/// parameter rather than an associated type we can implement `EnumTree` for the
+/// same enum multiple times with different roots, allowing a single enum to be
+/// part of multiple overlapping trees.
+pub trait EnumTree<R>: Sized {
+    /// Immediate parent type when traversing towards the root `R`.
     type P: Sized;
-    type R: Sized;
 }
 
 pub use enum_tree_derive::*;
 
-/// Marker trait for the root of an enum tree
-pub trait EnumTreeRoot: EnumTree<P = ()> {}
-/// Marker trait for inner nodes of an enum tree
-pub trait EnumTreeInner: EnumTree {}
-/// Marker trait for leaf nodes of an enum tree
-pub trait EnumTreeLeaf: EnumTree {}
+/// Marker trait for the root of an enum tree with root type `R`.
+pub trait EnumTreeRoot<R>: EnumTree<R, P = ()> {}
+/// Marker trait for inner nodes of an enum tree with root type `R`.
+pub trait EnumTreeInner<R>: EnumTree<R> {}
+/// Marker trait for leaf nodes of an enum tree with root type `R`.
+pub trait EnumTreeLeaf<R>: EnumTree<R> {}
 
-pub trait ToEnumTreeRoot: EnumTree {
-    fn to_root(self) -> Self::R;
+/// Convert a node into its corresponding root enum for a given tree `R`.
+pub trait ToEnumTreeRoot<R>: EnumTree<R> {
+    fn to_root(self) -> R;
 }
 
-impl<T, Root> ToEnumTreeRoot for T
+impl<T, Root> ToEnumTreeRoot<Root> for T
 where
-    T: EnumTree<R = Root>,
-    <T as EnumTree>::P: From<T> + EnumTree<R = Root> + ToEnumTreeRoot,
+    T: EnumTree<Root>,
+    <T as EnumTree<Root>>::P: From<T> + EnumTree<Root> + ToEnumTreeRoot<Root>,
 {
-    fn to_root(self) -> <T as EnumTree>::R {
-        let p: <T as EnumTree>::P = self.into();
+    fn to_root(self) -> Root {
+        let p: <T as EnumTree<Root>>::P = self.into();
         p.to_root()
     }
 }
@@ -39,17 +44,17 @@ where
 //     }
 // }
 
-pub trait TryFromEnumTreeRoot: EnumTree {
-    fn from_root(root: Self::R) -> Option<Self>;
+pub trait TryFromEnumTreeRoot<R>: EnumTree<R> {
+    fn from_root(root: R) -> Option<Self>;
 }
 
-impl<T, Root> TryFromEnumTreeRoot for T
+impl<T, Root> TryFromEnumTreeRoot<Root> for T
 where
-    T: EnumTree<R = Root> + TryFrom<<T as EnumTree>::P, Error = ()>,
-    <T as EnumTree>::P: EnumTree<R = Root> + TryFromEnumTreeRoot,
+    T: EnumTree<Root> + TryFrom<<T as EnumTree<Root>>::P, Error = ()>,
+    <T as EnumTree<Root>>::P: EnumTree<Root> + TryFromEnumTreeRoot<Root>,
 {
-    fn from_root(root: Self::R) -> Option<Self> {
-        let p: <T as EnumTree>::P = <T as EnumTree>::P::from_root(root)?;
-        <T as TryFrom<<T as EnumTree>::P>>::try_from(p).ok()
+    fn from_root(root: Root) -> Option<Self> {
+        let p: <T as EnumTree<Root>>::P = <T as EnumTree<Root>>::P::from_root(root)?;
+        <T as TryFrom<<T as EnumTree<Root>>::P>>::try_from(p).ok()
     }
 }

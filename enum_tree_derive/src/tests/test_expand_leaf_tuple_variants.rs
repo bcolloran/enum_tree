@@ -22,5 +22,8 @@ fn test_leaf_tuple_variants_rejected() {
 
     // This should eventually be rejected gracefully (no panic, a compile_error! or similar),
     // but for now we assert that it does NOT panic so this test fails until implemented.
-    assert!(!panicked, "Expected macro to reject leaf tuple variants without panicking");
+    assert!(
+        !panicked,
+        "Expected macro to reject leaf tuple variants without panicking"
+    );
 }

@@ -1,3 +1,5 @@
+mod test_expand_inner_multiple_roots;
+mod test_expand_leaf_multiple_roots;
 mod test_expand_leaf_tuple_variants;
 mod test_expand_leaf_under_root;
 mod test_expand_nested_enum_inner;

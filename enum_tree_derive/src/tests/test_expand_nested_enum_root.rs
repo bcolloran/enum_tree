@@ -18,18 +18,15 @@ fn test_root_simple() {
     };
 
     let expected = quote! {
-        impl ::enum_tree::EnumTree for RootAction {
-            type P = ();
-            type R = RootAction;
-        }
-        impl ::enum_tree::EnumTreeRoot for RootAction {}
+        impl ::enum_tree::EnumTree<RootAction> for RootAction { type P = (); }
+        impl ::enum_tree::EnumTreeRoot<RootAction> for RootAction {}
 
-        impl ::enum_tree::ToEnumTreeRoot for RootAction {
-            fn to_root(self) -> Self::R { self }
+        impl ::enum_tree::ToEnumTreeRoot<RootAction> for RootAction {
+            fn to_root(self) -> RootAction { self }
         }
 
-        impl ::enum_tree::TryFromEnumTreeRoot for RootAction {
-            fn from_root(root: Self::R) -> Option<Self> { Some(root) }
+        impl ::enum_tree::TryFromEnumTreeRoot<RootAction> for RootAction {
+            fn from_root(root: RootAction) -> Option<Self> { Some(root) }
         }
     };
 
