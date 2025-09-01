@@ -25,20 +25,20 @@ use enum_tree::EnumTree;
 #[derive(EnumTree)]
 #[enum_tree_root]
 pub enum AppAction {
-    Menu(MenuAction),
-    Exit,
+    Menu(Menu),
+    Network(Network),
 }
 
 #[derive(EnumTree)]
 #[enum_tree_inner(AppAction, AppAction)]
-pub enum MenuAction {
-    Settings(SettingsAction),
-    Quit,
+pub enum Menu {
+    Settings(Settings),
+    Quit(Quit),
 }
 
 #[derive(EnumTree)]
-#[enum_tree_leaf(MenuAction, AppAction)]
-pub enum SettingsAction {
+#[enum_tree_leaf(Menu, AppAction)]
+pub enum Settings {
     ToggleSound,
 }
 ```
