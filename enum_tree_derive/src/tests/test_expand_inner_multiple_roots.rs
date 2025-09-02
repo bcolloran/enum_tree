@@ -69,3 +69,32 @@ fn inner_multiple_roots_same_parent() {
     let actual = expand_enum_tree_inner(input);
     assert_eq!(actual.to_string(), expected.to_string());
 }
+
+#[test]
+fn inner_multiple_roots_same_parent_alias() {
+    let input: syn::DeriveInput = parse_quote! {
+        #[enum_tree_inner(super::Parent, RootOne)]
+        #[enum_tree_inner(crate::mods::Parent, RootTwo)]
+        pub enum Child {
+            Leaf(Leaf),
+        }
+    };
+
+    let expected = quote! {
+        impl ::enum_tree::EnumTree<RootOne> for Child { type P = super::Parent; }
+        impl ::enum_tree::EnumTreeInner<RootOne> for Child {}
+        impl ::enum_tree::EnumTree<RootTwo> for Child { type P = crate::mods::Parent; }
+        impl ::enum_tree::EnumTreeInner<RootTwo> for Child {}
+        impl From<Child> for super::Parent {
+            fn from(value: Child) -> Self { super::Parent::Child(value) }
+        }
+        impl TryFrom<super::Parent> for Child {
+            type Error = (); fn try_from(value: super::Parent) -> Result<Self, Self::Error> {
+                if let super::Parent::Child(v) = value { Ok(v) } else { Err(()) }
+            }
+        }
+    };
+
+    let actual = expand_enum_tree_inner(input);
+    assert_eq!(actual.to_string(), expected.to_string());
+}

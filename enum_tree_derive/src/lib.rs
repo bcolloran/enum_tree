@@ -115,7 +115,7 @@ pub(crate) fn expand_enum_tree_inner(input: DeriveInput) -> proc_macro2::TokenSt
             impl ::enum_tree::EnumTreeInner<#r_ty> for #ident {}
         });
 
-        let p_str = quote!(#p_ty).to_string();
+        let p_str = type_key(p_ty);
         if seen_parents.insert(p_str) {
             from_impls.push(quote! {
                 impl From<#ident> for #p_ty {
@@ -183,7 +183,7 @@ pub(crate) fn expand_enum_tree_leaf(input: DeriveInput) -> proc_macro2::TokenStr
             impl ::enum_tree::EnumTreeLeaf<#r_ty> for #ident {}
         });
 
-        let p_str = quote!(#p_ty).to_string();
+        let p_str = type_key(p_ty);
         if seen_parents.insert(p_str) {
             from_impls.push(quote! {
                 impl From<#ident> for #p_ty {
@@ -220,4 +220,13 @@ fn parse_two_type_args(attr: &Attribute) -> (Type, Type) {
         .next()
         .expect("expected root type as second attribute argument");
     (p, r)
+}
+
+fn type_key(ty: &Type) -> String {
+    if let Type::Path(type_path) = ty {
+        if let Some(seg) = type_path.path.segments.last() {
+            return quote!(#seg).to_string();
+        }
+    }
+    quote!(#ty).to_string()
 }
