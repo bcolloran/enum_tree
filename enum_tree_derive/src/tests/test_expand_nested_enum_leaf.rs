@@ -16,32 +16,25 @@ fn test_simple() {
     };
 
     let expected = quote! {
+        impl ::enum_tree::EnumTree<RootAction> for General { type P = MenuFlow; }
+        impl ::enum_tree::EnumTreeLeaf<RootAction> for General {}
 
-    impl ::enum_tree::EnumTree for General {
-          type P = MenuFlow;
-          type R = RootAction;
-      }
-        impl ::enum_tree::EnumTreeLeaf for General {}
+        impl From<General> for MenuFlow {
+            fn from(value: General) -> Self {
+                MenuFlow::General(value)
+            }
+        }
 
-      impl From<General> for MenuFlow {
-          fn from(value: General) -> Self {
-              MenuFlow::General(value)
-          }
-      }
-
-      impl TryFrom<MenuFlow> for General {
-          type Error = ();
-          fn try_from(value: MenuFlow) -> Result<Self, Self::Error> {
-              if let MenuFlow::General(v) = value {
-                  Ok(v)
-              } else {
-                  Err(())
-              }
-          }
-      }
-
-
-
+        impl TryFrom<MenuFlow> for General {
+            type Error = ();
+            fn try_from(value: MenuFlow) -> Result<Self, Self::Error> {
+                if let MenuFlow::General(v) = value {
+                    Ok(v)
+                } else {
+                    Err(())
+                }
+            }
+        }
     };
 
     let actual = expand_enum_tree_leaf(input);

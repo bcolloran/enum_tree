@@ -1,5 +1,4 @@
 use proc_macro::TokenStream;
-use proc_macro2::Ident as PMIdent;
 use quote::quote;
 use syn::{Attribute, Data, DataEnum, DeriveInput, Fields, Type, spanned::Spanned};
 
@@ -37,28 +36,26 @@ pub fn enum_tree_derive(input: TokenStream) -> TokenStream {
 pub(crate) fn expand_enum_tree(input: DeriveInput) -> proc_macro2::TokenStream {
     let attrs = &input.attrs;
     let mut is_root = false;
-    let mut is_inner = None::<(Type, Type)>;
-    let mut is_leaf = None::<(Type, Type)>;
+    let mut has_inner = false;
+    let mut has_leaf = false;
 
     for attr in attrs {
         if attr.path().is_ident("enum_tree_root") {
             is_root = true;
         } else if attr.path().is_ident("enum_tree_inner") {
-            let (p, r) = parse_two_type_args(attr);
-            is_inner = Some((p, r));
+            has_inner = true;
         } else if attr.path().is_ident("enum_tree_leaf") {
-            let (p, r) = parse_two_type_args(attr);
-            is_leaf = Some((p, r));
+            has_leaf = true;
         }
     }
 
     if is_root {
         return expand_enum_tree_root(input);
     }
-    if let Some((_p, _r)) = is_inner {
+    if has_inner {
         return expand_enum_tree_inner(input);
     }
-    if let Some((_p, _r)) = is_leaf {
+    if has_leaf {
         return expand_enum_tree_leaf(input);
     }
 
@@ -70,96 +67,81 @@ pub(crate) fn expand_enum_tree(input: DeriveInput) -> proc_macro2::TokenStream {
 }
 
 pub(crate) fn expand_enum_tree_root(input: DeriveInput) -> proc_macro2::TokenStream {
-    let ident = input.ident;
+    let ident = input.ident.clone();
 
     quote! {
-        impl ::enum_tree::EnumTree for #ident {
+        impl ::enum_tree::EnumTree<#ident> for #ident {
             type P = ();
-            type R = #ident;
         }
-        impl ::enum_tree::EnumTreeRoot for #ident {}
+        impl ::enum_tree::EnumTreeRoot<#ident> for #ident {}
 
-        impl ::enum_tree::ToEnumTreeRoot for #ident {
-            fn to_root(self) -> Self::R { self }
+        impl ::enum_tree::ToEnumTreeRoot<#ident> for #ident {
+            fn to_root(self) -> #ident { self }
         }
 
-        impl ::enum_tree::TryFromEnumTreeRoot for #ident {
-            fn from_root(root: Self::R) -> Option<Self> { Some(root) }
+        impl ::enum_tree::TryFromEnumTreeRoot<#ident> for #ident {
+            fn from_root(root: #ident) -> Option<Self> { Some(root) }
         }
     }
 }
 
 pub(crate) fn expand_enum_tree_inner(input: DeriveInput) -> proc_macro2::TokenStream {
-    let ident = input.ident;
+    use std::collections::HashSet;
 
-    // Find enum_tree_inner(P,R)
-    let mut parent_ty: Option<Type> = None;
-    let mut root_ty: Option<Type> = None;
+    let ident = input.ident.clone();
+
+    // Collect all enum_tree_inner(P,R) attributes
+    let mut pairs: Vec<(Type, Type)> = Vec::new();
     for attr in input.attrs.iter() {
         if attr.path().is_ident("enum_tree_inner") {
-            let (p, r) = parse_two_type_args(attr);
-            parent_ty = Some(p);
-            root_ty = Some(r);
-            break;
+            pairs.push(parse_two_type_args(attr));
         }
     }
-    let p_ty = parent_ty.expect("missing parent type for enum_tree_inner");
-    let r_ty = root_ty.expect("missing root type for enum_tree_inner");
+    if pairs.is_empty() {
+        return syn::Error::new(input.span(), "missing parent type for enum_tree_inner")
+            .to_compile_error();
+    }
 
-    // Variant path name in parent/root assumed to match enum ident
-    let variant_ident = &ident;
-    let parent_ident = type_ident_from_type(&p_ty);
-    let root_ident = type_ident_from_type(&r_ty);
-    let parent_is_root =
-        parent_ident.is_some() && root_ident.is_some() && parent_ident == root_ident;
+    let variant_ident = &ident; // Variant name in parent equals enum name
 
-    if parent_is_root {
-        quote! {
-            impl ::enum_tree::EnumTree for #ident {
-                type P = #p_ty;
-                type R = #r_ty;
-            }
-            impl ::enum_tree::EnumTreeInner for #ident {}
+    // Generate impls for each (parent, root) pair
+    let mut enum_impls = Vec::new();
+    let mut from_impls = Vec::new();
+    let mut seen_parents: HashSet<String> = HashSet::new();
 
-            impl From<#ident> for #p_ty {
-                fn from(value: #ident) -> Self { #p_ty::#variant_ident(value) }
-            }
+    for (p_ty, r_ty) in &pairs {
+        enum_impls.push(quote! {
+            impl ::enum_tree::EnumTree<#r_ty> for #ident { type P = #p_ty; }
+            impl ::enum_tree::EnumTreeInner<#r_ty> for #ident {}
+        });
 
-            impl TryFrom<#p_ty> for #ident {
-                type Error = ();
-                fn try_from(value: #p_ty) -> Result<Self, Self::Error> {
-                    if let #p_ty::#variant_ident(v) = value { Ok(v) } else { Err(()) }
+        let p_str = type_key(p_ty);
+        if seen_parents.insert(p_str) {
+            from_impls.push(quote! {
+                impl From<#ident> for #p_ty {
+                    fn from(value: #ident) -> Self { #p_ty::#variant_ident(value) }
                 }
-            }
 
-
-        }
-    } else {
-        quote! {
-            impl ::enum_tree::EnumTree for #ident {
-                type P = #p_ty;
-                type R = #r_ty;
-            }
-            impl ::enum_tree::EnumTreeInner for #ident {}
-
-            impl From<#ident> for #p_ty {
-                fn from(value: #ident) -> Self { #p_ty::#variant_ident(value) }
-            }
-
-            impl TryFrom<#p_ty> for #ident {
-                type Error = ();
-                fn try_from(value: #p_ty) -> Result<Self, Self::Error> {
-                    if let #p_ty::#variant_ident(v) = value { Ok(v) } else { Err(()) }
+                impl TryFrom<#p_ty> for #ident {
+                    type Error = ();
+                    fn try_from(value: #p_ty) -> Result<Self, Self::Error> {
+                        if let #p_ty::#variant_ident(v) = value { Ok(v) } else { Err(()) }
+                    }
                 }
-            }
-
-
+            });
         }
+    }
+
+    quote! {
+        #(#enum_impls)*
+        #(#from_impls)*
     }
 }
 
 pub(crate) fn expand_enum_tree_leaf(input: DeriveInput) -> proc_macro2::TokenStream {
-    let ident = input.ident;
+    use std::collections::HashSet;
+
+    let ident = input.ident.clone();
 
     // Validate leaf enum variants: only unit or struct (named fields). No tuple variants allowed.
     if let Data::Enum(DataEnum { variants, .. }) = &input.data {
@@ -177,42 +159,50 @@ pub(crate) fn expand_enum_tree_leaf(input: DeriveInput) -> proc_macro2::TokenStr
         }
     }
 
-    // Find enum_tree_leaf(P,R)
-    let mut parent_ty: Option<Type> = None;
-    let mut root_ty: Option<Type> = None;
+    // Collect all enum_tree_leaf(P,R) attributes
+    let mut pairs: Vec<(Type, Type)> = Vec::new();
     for attr in input.attrs.iter() {
         if attr.path().is_ident("enum_tree_leaf") {
-            let (p, r) = parse_two_type_args(attr);
-            parent_ty = Some(p);
-            root_ty = Some(r);
-            break;
+            pairs.push(parse_two_type_args(attr));
         }
     }
-    let p_ty = parent_ty.expect("missing parent type for enum_tree_leaf");
-    let r_ty = root_ty.expect("missing root type for enum_tree_leaf");
+    if pairs.is_empty() {
+        return syn::Error::new(input.span(), "missing parent type for enum_tree_leaf")
+            .to_compile_error();
+    }
 
     let parent_variant_ident = &ident; // Variant name in parent equals child enum name
 
+    let mut enum_impls = Vec::new();
+    let mut from_impls = Vec::new();
+    let mut seen_parents: HashSet<String> = HashSet::new();
+
+    for (p_ty, r_ty) in &pairs {
+        enum_impls.push(quote! {
+            impl ::enum_tree::EnumTree<#r_ty> for #ident { type P = #p_ty; }
+            impl ::enum_tree::EnumTreeLeaf<#r_ty> for #ident {}
+        });
+
+        let p_str = type_key(p_ty);
+        if seen_parents.insert(p_str) {
+            from_impls.push(quote! {
+                impl From<#ident> for #p_ty {
+                    fn from(value: #ident) -> Self { #p_ty::#parent_variant_ident(value) }
+                }
+
+                impl TryFrom<#p_ty> for #ident {
+                    type Error = ();
+                    fn try_from(value: #p_ty) -> Result<Self, Self::Error> {
+                        if let #p_ty::#parent_variant_ident(v) = value { Ok(v) } else { Err(()) }
+                    }
+                }
+            });
+        }
+    }
+
     quote! {
-        impl ::enum_tree::EnumTree for #ident {
-            type P = #p_ty;
-            type R = #r_ty;
-        }
-        impl ::enum_tree::EnumTreeLeaf for #ident {}
-
-        impl From<#ident> for #p_ty {
-            fn from(value: #ident) -> Self { #p_ty::#parent_variant_ident(value) }
-        }
-
-        impl TryFrom<#p_ty> for #ident {
-            type Error = ();
-            fn try_from(value: #p_ty) -> Result<Self, Self::Error> {
-                if let #p_ty::#parent_variant_ident(v) = value { Ok(v) } else { Err(()) }
-            }
-        }
-
-    // #to_root_impl
-    // #try_from_root_impl
+        #(#enum_impls)*
+        #(#from_impls)*
     }
 }
 
@@ -232,11 +222,11 @@ fn parse_two_type_args(attr: &Attribute) -> (Type, Type) {
     (p, r)
 }
 
-fn type_ident_from_type(ty: &Type) -> Option<PMIdent> {
-    if let Type::Path(tp) = ty {
-        if let Some(seg) = tp.path.segments.last() {
-            return Some(seg.ident.clone());
+fn type_key(ty: &Type) -> String {
+    if let Type::Path(type_path) = ty {
+        if let Some(seg) = type_path.path.segments.last() {
+            return quote!(#seg).to_string();
         }
     }
-    None
+    quote!(#ty).to_string()
 }
